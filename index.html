@@ -1,14 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LifeGrid: Evolution Arena Prototype</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <script src="script.js"></script>
+    <title>LifeGrid: Evolution Arena</title>
 </head>
 <body>
-    <h1>LifeGrid: Evolution Arena Prototype</h1>
     <p>Choose your faction: 
         <button onclick="setFaction('red')">Red</button>
         <button onclick="setFaction('blue')">Blue</button>
@@ -19,5 +14,7 @@
     </p>
     <p>Cooldown: <span id="cooldown">0</span> seconds</p>
     <p>Score - Red: <span id="redScore">0</span>, Blue: <span id="blueScore">0</span></p>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.4.2/lib/p5.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
