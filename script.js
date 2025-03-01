@@ -23,6 +23,7 @@ function setup() {
     initializeGrid();
     frameRate(1); // Evolve every second
     cam = createCamera(); // Create a camera for 3D navigation
+    cam.setPosition(0, 0, 800); // Position the camera to see the grid
 }
 
 function draw() {
