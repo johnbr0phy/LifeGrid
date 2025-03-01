@@ -2,137 +2,120 @@ let grid;
 let nextGrid;
 let colors;
 let nextColors;
-let gridSize = 100; // 100x100 grid
-let cellSize = 10; // Each cell is 10x10 pixels
+let gridSize = 20; // 20x20x20 grid for 3D
+let cellSize = 10; // Each cell is 10x10x10 pixels
 let playerFaction = null;
 let selectedPattern = null;
 let patterns = {
-    glider: [[0,1], [1,0], [1,1], [1,2]], // Relative positions for a glider
-    oscillator: [[0,0], [0,1], [1,0], [1,1]] // Relative positions for an oscillator
+    glider: [[0,1,0], [1,0,0], [1,1,0], [1,2,0]], // Simple 3D glider pattern
+    oscillator: [[0,0,0], [0,1,0], [1,0,0], [1,1,0]] // Simple 3D oscillator pattern
 };
 let cooldown = 0;
-let cooldownTime = 5; // 5 seconds cooldown for pattern placement
-let panX = 0; // Panning offset in x-direction
-let panY = 0; // Panning offset in y-direction
-let zoom = 1; // Zoom level (1 = normal, >1 = zoomed in, <1 = zoomed out)
+let cooldownTime = 5; // seconds
+let cam;
 
 function setup() {
-    createCanvas(800, 600); // Create an 800x600 canvas
-    grid = createGrid(gridSize, gridSize);
-    nextGrid = createGrid(gridSize, gridSize);
-    colors = createGrid(gridSize, gridSize, 'neutral');
-    nextColors = createGrid(gridSize, gridSize, 'neutral');
+    createCanvas(800, 600, WEBGL); // Use WEBGL for 3D rendering
+    grid = createGrid(gridSize, gridSize, gridSize);
+    nextGrid = createGrid(gridSize, gridSize, gridSize);
+    colors = createGrid(gridSize, gridSize, gridSize, 'neutral');
+    nextColors = createGrid(gridSize, gridSize, gridSize, 'neutral');
     initializeGrid();
-    frameRate(1); // Evolve the grid once per second
+    frameRate(1); // Evolve every second
+    cam = createCamera(); // Create a camera for 3D navigation
 }
 
 function draw() {
-    background(255); // Clear the background
-    // Apply panning and zooming transformations
-    translate(panX, panY);
-    scale(zoom);
-    drawGrid(); // Draw the current state of the grid
-    updateCooldown(); // Update the cooldown timer
-    updateScore(); // Update the score display
+    background(255);
+    orbitControl(); // Enable mouse controls for rotation, panning, and zooming
+    drawGrid();
+    updateCooldown();
+    updateScore();
 }
 
 function mousePressed() {
     if (playerFaction && selectedPattern && cooldown <= 0) {
-        // Calculate the grid coordinates from mouse position, accounting for zoom and pan
-        let originalX = (mouseX / zoom) - panX;
-        let originalY = (mouseY / zoom) - panY;
-        let gridX = Math.floor(originalX / cellSize);
-        let gridY = Math.floor(originalY / cellSize);
-        // Ensure the click is within the grid boundaries
-        if (gridX >= 0 && gridX < gridSize && gridY >= 0 && gridY < gridSize) {
-            placePattern(gridX, gridY);
-            cooldown = cooldownTime; // Reset cooldown
-        }
+        // Place pattern at the center of the grid for simplicity
+        let x = Math.floor(gridSize / 2);
+        let y = Math.floor(gridSize / 2);
+        let z = Math.floor(gridSize / 2);
+        placePattern(x, y, z);
+        cooldown = cooldownTime;
     }
 }
 
-function mouseWheel(event) {
-    // Adjust zoom level based on mouse wheel scroll
-    zoom += event.delta > 0 ? -0.1 : 0.1;
-    zoom = constrain(zoom, 0.5, 2); // Limit zoom between 0.5 and 2
-}
-
-function mouseDragged() {
-    // Update panning based on mouse drag, adjusted for zoom level
-    panX += (mouseX - pmouseX) / zoom;
-    panY += (mouseY - pmouseY) / zoom;
-}
-
-function createGrid(rows, cols, defaultValue = false) {
-    // Create a 2D array with the specified dimensions and default value
-    let grid = new Array(rows);
-    for (let i = 0; i < rows; i++) {
-        grid[i] = new Array(cols).fill(defaultValue);
+function createGrid(x, y, z, defaultValue = false) {
+    let grid = new Array(x);
+    for (let i = 0; i < x; i++) {
+        grid[i] = new Array(y);
+        for (let j = 0; j < y; j++) {
+            grid[i][j] = new Array(z).fill(defaultValue);
+        }
     }
     return grid;
 }
 
 function initializeGrid() {
-    // Randomly initialize the grid with 20% of cells alive and random colors
     for (let i = 0; i < gridSize; i++) {
         for (let j = 0; j < gridSize; j++) {
-            grid[i][j] = Math.random() < 0.2;
-            colors[i][j] = grid[i][j] ? (Math.random() < 0.5 ? 'red' : 'blue') : 'neutral';
+            for (let k = 0; k < gridSize; k++) {
+                grid[i][j][k] = Math.random() < 0.2; // 20% chance of being alive
+                colors[i][j][k] = grid[i][j][k] ? (Math.random() < 0.5 ? 'red' : 'blue') : 'neutral';
+            }
         }
     }
 }
 
 function drawGrid() {
-    // Draw each cell based on its state and color
     for (let i = 0; i < gridSize; i++) {
         for (let j = 0; j < gridSize; j++) {
-            let x = i * cellSize;
-            let y = j * cellSize;
-            if (grid[i][j]) {
-                if (colors[i][j] === 'red') {
-                    fill(255, 0, 0);
-                } else if (colors[i][j] === 'blue') {
-                    fill(0, 0, 255);
-                } else {
-                    fill(0); // Should not happen, but default to black
+            for (let k = 0; k < gridSize; k++) {
+                if (grid[i][j][k]) {
+                    push();
+                    translate(i * cellSize - (gridSize * cellSize) / 2, j * cellSize - (gridSize * cellSize) / 2, k * cellSize - (gridSize * cellSize) / 2);
+                    if (colors[i][j][k] === 'red') {
+                        fill(255, 0, 0);
+                    } else if (colors[i][j][k] === 'blue') {
+                        fill(0, 0, 255);
+                    }
+                    box(cellSize); // Draw a 3D cube for each live cell
+                    pop();
                 }
-            } else {
-                fill(200); // Dead cells are gray
             }
-            rect(x, y, cellSize, cellSize);
         }
     }
 }
 
-function placePattern(x, y) {
-    // Place the selected pattern at the specified grid position
+function placePattern(x, y, z) {
     let pattern = patterns[selectedPattern];
-    for (let [dx, dy] of pattern) {
+    for (let [dx, dy, dz] of pattern) {
         let px = x + dx;
         let py = y + dy;
-        if (px >= 0 && px < gridSize && py >= 0 && py < gridSize) {
-            grid[px][py] = true;
-            colors[px][py] = playerFaction;
+        let pz = z + dz;
+        if (px >= 0 && px < gridSize && py >= 0 && py < gridSize && pz >= 0 && pz < gridSize) {
+            grid[px][py][pz] = true;
+            colors[px][py][pz] = playerFaction;
         }
     }
 }
 
 function updateCooldown() {
     if (cooldown > 0) {
-        cooldown -= 1 / frameRate(); // Decrease cooldown based on frame rate
+        cooldown -= 1 / frameRate();
         document.getElementById('cooldown').innerText = Math.ceil(cooldown);
     }
 }
 
 function updateScore() {
-    // Calculate and display the number of live cells for each faction
     let redCount = 0;
     let blueCount = 0;
     for (let i = 0; i < gridSize; i++) {
         for (let j = 0; j < gridSize; j++) {
-            if (grid[i][j]) {
-                if (colors[i][j] === 'red') redCount++;
-                else if (colors[i][j] === 'blue') blueCount++;
+            for (let k = 0; k < gridSize; k++) {
+                if (grid[i][j][k]) {
+                    if (colors[i][j][k] === 'red') redCount++;
+                    else if (colors[i][j][k] === 'blue') blueCount++;
+                }
             }
         }
     }
@@ -151,61 +134,62 @@ function selectPattern(pattern) {
 }
 
 function evolve() {
-    // Evolve the grid based on Conway's Game of Life rules
     for (let i = 0; i < gridSize; i++) {
         for (let j = 0; j < gridSize; j++) {
-            let liveNeighbors = countLiveNeighbors(i, j);
-            if (grid[i][j]) {
-                nextGrid[i][j] = liveNeighbors === 2 || liveNeighbors === 3;
-            } else {
-                nextGrid[i][j] = liveNeighbors === 3;
-            }
-            if (nextGrid[i][j]) {
-                nextColors[i][j] = getMajorityColor(i, j);
-            } else {
-                nextColors[i][j] = 'neutral';
+            for (let k = 0; k < gridSize; k++) {
+                let liveNeighbors = countLiveNeighbors(i, j, k);
+                if (grid[i][j][k]) {
+                    nextGrid[i][j][k] = liveNeighbors >= 4 && liveNeighbors <= 6; // Survival rule
+                } else {
+                    nextGrid[i][j][k] = liveNeighbors === 5; // Birth rule
+                }
+                if (nextGrid[i][j][k]) {
+                    nextColors[i][j][k] = getMajorityColor(i, j, k);
+                } else {
+                    nextColors[i][j][k] = 'neutral';
+                }
             }
         }
     }
-    // Swap the grids
     [grid, nextGrid] = [nextGrid, grid];
     [colors, nextColors] = [nextColors, colors];
 }
 
-function countLiveNeighbors(x, y) {
-    // Count the number of live neighbors around a cell
+function countLiveNeighbors(x, y, z) {
     let count = 0;
     for (let i = -1; i <= 1; i++) {
         for (let j = -1; j <= 1; j++) {
-            if (i === 0 && j === 0) continue;
-            let nx = x + i;
-            let ny = y + j;
-            if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize && grid[nx][ny]) {
-                count++;
+            for (let k = -1; k <= 1; k++) {
+                if (i === 0 && j === 0 && k === 0) continue;
+                let nx = x + i;
+                let ny = y + j;
+                let nz = z + k;
+                if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize && nz >= 0 && nz < gridSize && grid[nx][ny][nz]) {
+                    count++;
+                }
             }
         }
     }
     return count;
 }
 
-function getMajorityColor(x, y) {
-    // Determine the majority color among live neighbors
+function getMajorityColor(x, y, z) {
     let colorCount = { red: 0, blue: 0 };
     for (let i = -1; i <= 1; i++) {
         for (let j = -1; j <= 1; j++) {
-            if (i === 0 && j === 0) continue;
-            let nx = x + i;
-            let ny = y + j;
-            if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize && grid[nx][ny]) {
-                if (colors[nx][ny] === 'red') colorCount.red++;
-                else if (colors[nx][ny] === 'blue') colorCount.blue++;
+            for (let k = -1; k <= 1; k++) {
+                if (i === 0 && j === 0 && k === 0) continue;
+                let nx = x + i;
+                let ny = y + j;
+                let nz = z + k;
+                if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize && nz >= 0 && nz < gridSize && grid[nx][ny][nz]) {
+                    if (colors[nx][ny][nz] === 'red') colorCount.red++;
+                    else if (colors[nx][ny][nz] === 'blue') colorCount.blue++;
+                }
             }
         }
     }
-    if (colorCount.red > colorCount.blue) return 'red';
-    else if (colorCount.blue > colorCount.red) return 'blue';
-    else return 'neutral'; // In case of a tie
+    return colorCount.red > colorCount.blue ? 'red' : colorCount.blue > colorCount.red ? 'blue' : 'neutral';
 }
 
-// Evolve the grid every second
-setInterval(evolve, 1000);
+setInterval(evolve, 1000); // Evolve every second
